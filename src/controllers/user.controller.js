@@ -281,6 +281,32 @@ const updateUserAvatar = asyncHandler(async(req,res)=>{
   if(!avatar.url){
     throw new ApiError(400,"Error while uploading on avatar")
   }
+  const existingUser  = await User.findById(req.user._id)
+  if(!existingUser ){
+    throw new ApiError(404,"User not found")
+  }
+  // delete the existing avatar from cloudinary
+  if(existingUser.avatar){
+  
+    try {
+      const parts = existingUser.avatar.split("/");
+      const fileName = parts[parts.length - 1]; // avatar_xxx.jpg
+      const folder = parts[parts.length - 2];   // avatars (assuming that's your folder)
+      const publicId = `${folder}/${fileName.split(".")[0]}`;
+      
+      // delete the file from cloudinary
+      const deleted = await deleteFromCloudinary(publicId);
+      if (deleted.result !== "ok") {
+        throw new ApiError(500, "Failed to delete old avatar from Cloudinary");
+      }
+    } 
+    catch (error) {
+        throw new ApiError(500, error.message || "Cloudinary deletion error");
+    }
+  }
+
+  // update the user avatar
+
   const user = await User.findByIdAndUpdate(
     req.user._id,
     {
